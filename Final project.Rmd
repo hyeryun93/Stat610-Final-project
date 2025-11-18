@@ -1,0 +1,70 @@
+– Model selection and post-selection inference: In regression modeling, we sometimes want to include only a subset of our variables in the model and would like that decision to be data dependent. 
+Two solutions to this problem are forward stepwise selection and backward stepwise selection, in which you fit a sequence of models, either adding or subtracting one variable at a time until some stopping criterion is reached. 
+These procedures work for variable selection, but they invalidate the standard methods of inference in linear models. 
+2 You will: 
+– Write code implementing either forward stepwise selection or backward stepwise selection. 
+ – Set up a simulation experiment, run your method on simulated data, obtain p-values or confidence intervals in the selected model.
+----------------------------------
+
+
+#data generating
+-Set the model
+-generate data
+```{r}
+#simple setup: standard linear model Y=Xβ+ε. 
+
+set.seed(610)
+
+n <- 10 ?
+p <- 10 ?
+
+X <- matrix(rnorm(n*p), n, p)
+beta <- c(1, -1, rep(0, p-2))
+e <- rnorm(n)
+y <- X %*% beta + e  
+```
+
+
+#implement stepwise: backward stepwise selection 
+-add or remove one variable at a time 
+```{r}
+#approach: remove one predictor at a time based on the largest p-value.
+#some stopping critetion = break ? 
+
+full_model <- lm(y ~ ., data = )
+
+backward_stepwise <- function() {
+# 1. Check p-values of predictors
+# 2. Identify the predictor with the largest p-value (>0.05)
+# 3. Remove that predictor
+# 4. Re-fit the model and repeat the process
+# 5. no predictor exceeds 0.05 then break the loop
+}
+
+-> final model 
+```
+
+#Simulation with the final model
+```{r}
+#how complex the code should be 
+
+#1. apply generate data & stepwise selection code 
+#2. implement simulation code 
+#3. obtain p-values or confidence interval
+
+simulation <- 1000
+
+for (i in 1:simulation) {
+X <- matrix(rnorm(n*p), n, p)
+beta <- c(1, -1, rep(0, p-2))
+e <- rnorm(n)
+y <- X %*% beta + e  
+}
+
+backward_stepwise
+
+...
+
+```
+
+#Summarize and interpret results
