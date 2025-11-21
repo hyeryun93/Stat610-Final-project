@@ -9,14 +9,13 @@ These procedures work for variable selection, but they invalidate the standard m
 
 #data generating
 -Set the model
--generate data
 ```{r}
 #simple setup: standard linear model Y=Xβ+ε. 
 
 set.seed(610)
 
-n <- 10 ?
-p <- 10 ?
+n <- 100
+p <- 10 
 
 X <- matrix(rnorm(n*p), n, p)
 beta <- c(1, -1, rep(0, p-2))
@@ -28,21 +27,42 @@ y <- X %*% beta + e
 #implement stepwise: backward stepwise selection 
 -add or remove one variable at a time 
 ```{r}
-#approach: remove one predictor at a time based on the largest p-value.
-#some stopping critetion = break ? 
+#approach: remove one predictor at a time based on the smallest RSS
 
-full_model <- lm(y ~ ., data = )
+#Prepare data 
+dat <- data.frame(y = as.numeric(y), X)
+colnames(dat) <- c("y", paste0("X", 1:p))
 
-backward_stepwise <- function() {
-# 1. Check p-values of predictors
-# 2. Identify the predictor with the largest p-value (>0.05)
-# 3. Remove that predictor
-# 4. Re-fit the model and repeat the process
-# 5. no predictor exceeds 0.05 then break the loop
-}
+full_model <- lm(y ~ ., data = dat)
 
--> final model 
+#Create a structure to store results 
+
+cols <- names(dat)
+pred <- cols[cols != "y"]
+
+model_list <- list() 
+
+while (TRUE) {
+  k <- length(pred)
+  
+  fm <- paste(pred, collapse = "+")
+  form <- as.formula(paste("y ~ ", fm))
+  fit <- lm(form, dat)
+
+  ---------------------------------------------Not yet 
+  
+  
+  if (k == 0) {
+    break
+  }
+
+
+
+
 ```
+
+
+git init
 
 #Simulation with the final model
 ```{r}
@@ -62,8 +82,6 @@ y <- X %*% beta + e
 }
 
 backward_stepwise
-
-...
 
 ```
 
