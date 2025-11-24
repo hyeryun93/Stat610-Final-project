@@ -47,7 +47,24 @@ while (TRUE) {
   
   fm <- paste(pred, collapse = "+")
   form <- as.formula(paste("y ~ ", fm))
+  
   fit <- lm(form, dat)
+  rss_vec <- numeric(k)
+  
+  for (i in 1:k) {
+    nw_vec <- pred[-i]
+    nw_fm <- paste(nw_vec, collapse = "+")
+    nw_form <- as.formula(paste("y ~ ", nw_fm))
+    nw_fit <- lm(nw_form, dat)
+    rss_vec[i] <- sum((nw_fit$residuals)^2)
+  }
+  
+  min_rss <- which.min(rss_vec)
+  pred <- pred[-(min_rss)]
+  
+  break
+}
+
 
   ---------------------------------------------Not yet 
   
