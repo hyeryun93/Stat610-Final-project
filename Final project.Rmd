@@ -42,9 +42,12 @@ pred <- cols[cols != "y"]
 
 model_list <- list() 
 
-while (TRUE) {
-  k <- length(pred)
-  
+#backward stepwise
+while(TRUE) {
+  k <- length(pred) 
+  if (k == 0) {
+    break
+  }
   fm <- paste(pred, collapse = "+")
   form <- as.formula(paste("y ~ ", fm))
   
@@ -58,23 +61,11 @@ while (TRUE) {
     nw_fit <- lm(nw_form, dat)
     rss_vec[i] <- sum((nw_fit$residuals)^2)
   }
-  
+  rss <-  sum((fit$residuals)^2)
   min_rss <- which.min(rss_vec)
   pred <- pred[-(min_rss)]
-  
-  break
 }
-
-
-  ---------------------------------------------Not yet 
   
-  
-  if (k == 0) {
-    break
-  }
-
-
-
 
 ```
 
