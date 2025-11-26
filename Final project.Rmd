@@ -42,6 +42,15 @@ pred <- cols[cols != "y"]
 
 model_list <- list() 
 
+step <- 0
+trace <- data.frame(
+  step     = integer(0),
+  num_pred = integer(0),
+  preds    = character(0),
+  rss      = numeric(0)
+)
+
+
 #backward stepwise
 while(TRUE) {
   k <- length(pred) 
@@ -49,6 +58,9 @@ while(TRUE) {
     break
   }
   fm <- paste(pred, collapse = "+")
+  
+  if (fm == "") break
+  
   form <- as.formula(paste("y ~ ", fm))
   
   fit <- lm(form, dat)
@@ -62,9 +74,23 @@ while(TRUE) {
     rss_vec[i] <- sum((nw_fit$residuals)^2)
   }
   rss <-  sum((fit$residuals)^2)
+  
+  step <- step + 1
+  
+  row <- data.frame( 
+  step = step , 
+  num_pred = length(pred), 
+  preds = paste(pred, collapse = "+"), 
+  rss = rss )
+
+trace <- rbind(trace, row)
+
+
   min_rss <- which.min(rss_vec)
   pred <- pred[-(min_rss)]
 }
+
+
   
 
 ```
