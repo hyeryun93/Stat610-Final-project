@@ -64,15 +64,7 @@ while(TRUE) {
   form <- as.formula(paste("y ~ ", fm))
   
   fit <- lm(form, dat)
-  rss_vec <- numeric(k)
   
-  for (i in 1:k) {
-    nw_vec <- pred[-i]
-    nw_fm <- paste(nw_vec, collapse = "+")
-    nw_form <- as.formula(paste("y ~ ", nw_fm))
-    nw_fit <- lm(nw_form, dat)
-    rss_vec[i] <- sum((nw_fit$residuals)^2)
-  }
   rss <-  sum((fit$residuals)^2)
   
   step <- step + 1
@@ -84,38 +76,104 @@ while(TRUE) {
   rss = rss )
 
 trace <- rbind(trace, row)
+  if (k == 1) break
 
+  rss_vec <- numeric(k)
+
+  for (i in 1:k) {
+    nw_vec  <- pred[-i]
+    nw_fm   <- paste(nw_vec, collapse = "+")
+    nw_form <- as.formula(paste("y ~ ", nw_fm))
+    nw_fit  <- lm(nw_form, dat)
+    rss_vec[i] <- sum((nw_fit$residuals)^2)
+  }
 
   min_rss <- which.min(rss_vec)
   pred <- pred[-(min_rss)]
 }
 
-
-  
-
 ```
 
 
-git init
-
 #Simulation with the final model
 ```{r}
-#how complex the code should be 
+backward_stepwise <- function(dat) {
 
-#1. apply generate data & stepwise selection code 
-#2. implement simulation code 
-#3. obtain p-values or confidence interval
+cols <- names(dat)
+pred <- cols[cols != "y"]
+
+model_list <- list() 
+
+step <- 0
+trace <- data.frame(
+  step     = integer(0),
+  num_pred = integer(0),
+  preds    = character(0),
+  rss      = numeric(0)
+)
+
+
+#backward stepwise
+while(TRUE) {
+  k <- length(pred) 
+  if (k == 0) {
+    break
+  }
+  fm <- paste(pred, collapse = "+")
+  
+  if (fm == "") break
+  
+  form <- as.formula(paste("y ~ ", fm))
+  
+  fit <- lm(form, dat)
+  
+  rss <-  sum((fit$residuals)^2)
+  
+  step <- step + 1
+  
+  row <- data.frame( 
+  step = step , 
+  num_pred = length(pred), 
+  preds = paste(pred, collapse = "+"), 
+  rss = rss )
+
+trace <- rbind(trace, row)
+  if (k == 1) break
+
+  rss_vec <- numeric(k)
+
+  for (i in 1:k) {
+    nw_vec  <- pred[-i]
+    nw_fm   <- paste(nw_vec, collapse = "+")
+    nw_form <- as.formula(paste("y ~ ", nw_fm))
+    nw_fit  <- lm(nw_form, dat)
+    rss_vec[i] <- sum((nw_fit$residuals)^2)
+  }
+
+  min_rss <- which.min(rss_vec)
+  pred <- pred[-(min_rss)]
+}
+return(fit)
+}
 
 simulation <- 1000
+
+selected_list <- vector("list", simulation)
+sim_mat <- matrix(0, nrow=1000, ncol = 10)
+
+colnames(sim_mat) <- paste0("X", 1:p)
 
 for (i in 1:simulation) {
 X <- matrix(rnorm(n*p), n, p)
 beta <- c(1, -1, rep(0, p-2))
 e <- rnorm(n)
 y <- X %*% beta + e  
+
+dat <- data.frame(y = as.numeric(y), X)
+colnames(dat) <- c("y", paste0("X", 1:p))
 }
 
-backward_stepwise
+
 
 ```
 
