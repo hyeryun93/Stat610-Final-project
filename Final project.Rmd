@@ -29,151 +29,106 @@ y <- X %*% beta + e
 ```{r}
 #approach: remove one predictor at a time based on the smallest RSS
 
-#Prepare data 
-dat <- data.frame(y = as.numeric(y), X)
-colnames(dat) <- c("y", paste0("X", 1:p))
+backward_stepwise <- function(dat) {
+  cols <- names(dat)
+  pred <- cols[cols != "y"]
 
-full_model <- lm(y ~ ., data = dat)
+  while (TRUE) {
+    k <- length(pred)
+    if (k == 0) break
 
-#Create a structure to store results 
+    fm <- paste(pred, collapse = "+")
+    if (fm == "") break
 
-cols <- names(dat)
-pred <- cols[cols != "y"]
+    form <- as.formula(paste("y ~", fm))
+    fit <- lm(form, dat)
 
-model_list <- list() 
+    if (k == 1) break
 
-step <- 0
-trace <- data.frame(
-  step     = integer(0),
-  num_pred = integer(0),
-  preds    = character(0),
-  rss      = numeric(0)
-)
+    rss_vec <- numeric(k)
+    for (j in 1:k) {
+      new_pred <- pred[-j]
+      new_fm <- paste(new_pred, collapse = "+")
+      new_form <- as.formula(paste("y ~", new_fm))
+      new_fit <- lm(new_form, dat)
+      rss_vec[j] <- sum(new_fit$residuals^2)
+    }
 
-
-#backward stepwise
-while(TRUE) {
-  k <- length(pred) 
-  if (k == 0) {
-    break
-  }
-  fm <- paste(pred, collapse = "+")
-  
-  if (fm == "") break
-  
-  form <- as.formula(paste("y ~ ", fm))
-  
-  fit <- lm(form, dat)
-  
-  rss <-  sum((fit$residuals)^2)
-  
-  step <- step + 1
-  
-  row <- data.frame( 
-  step = step , 
-  num_pred = length(pred), 
-  preds = paste(pred, collapse = "+"), 
-  rss = rss )
-
-trace <- rbind(trace, row)
-  if (k == 1) break
-
-  rss_vec <- numeric(k)
-
-  for (i in 1:k) {
-    nw_vec  <- pred[-i]
-    nw_fm   <- paste(nw_vec, collapse = "+")
-    nw_form <- as.formula(paste("y ~ ", nw_fm))
-    nw_fit  <- lm(nw_form, dat)
-    rss_vec[i] <- sum((nw_fit$residuals)^2)
+    j_min <- which.min(rss_vec)
+    pred <- pred[-j_min]
   }
 
-  min_rss <- which.min(rss_vec)
-  pred <- pred[-(min_rss)]
+  fit
 }
-
 ```
 
 
 #Simulation with the final model
 ```{r}
-backward_stepwise <- function(dat) {
-
-cols <- names(dat)
-pred <- cols[cols != "y"]
-
-model_list <- list() 
-
-step <- 0
-trace <- data.frame(
-  step     = integer(0),
-  num_pred = integer(0),
-  preds    = character(0),
-  rss      = numeric(0)
-)
-
-
-#backward stepwise
-while(TRUE) {
-  k <- length(pred) 
-  if (k == 0) {
-    break
-  }
-  fm <- paste(pred, collapse = "+")
-  
-  if (fm == "") break
-  
-  form <- as.formula(paste("y ~ ", fm))
-  
-  fit <- lm(form, dat)
-  
-  rss <-  sum((fit$residuals)^2)
-  
-  step <- step + 1
-  
-  row <- data.frame( 
-  step = step , 
-  num_pred = length(pred), 
-  preds = paste(pred, collapse = "+"), 
-  rss = rss )
-
-trace <- rbind(trace, row)
-  if (k == 1) break
-
-  rss_vec <- numeric(k)
-
-  for (i in 1:k) {
-    nw_vec  <- pred[-i]
-    nw_fm   <- paste(nw_vec, collapse = "+")
-    nw_form <- as.formula(paste("y ~ ", nw_fm))
-    nw_fit  <- lm(nw_form, dat)
-    rss_vec[i] <- sum((nw_fit$residuals)^2)
-  }
-
-  min_rss <- which.min(rss_vec)
-  pred <- pred[-(min_rss)]
-}
-return(fit)
-}
+#sim
+set.seed(610)
+n <- 100
+p <- 10
+beta_true <- c(1, -1, rep(0, p - 2))
 
 simulation <- 1000
 
 selected_list <- vector("list", simulation)
-sim_mat <- matrix(0, nrow=1000, ncol = 10)
-
+sim_mat <- matrix(0, nrow = simulation, ncol = p)
 colnames(sim_mat) <- paste0("X", 1:p)
 
-for (i in 1:simulation) {
-X <- matrix(rnorm(n*p), n, p)
-beta <- c(1, -1, rep(0, p-2))
-e <- rnorm(n)
-y <- X %*% beta + e  
+results_list <- vector("list", simulation)
 
-dat <- data.frame(y = as.numeric(y), X)
-colnames(dat) <- c("y", paste0("X", 1:p))
+for (i in 1:simulation) {
+  X <- matrix(rnorm(n * p), n, p)
+  e <- rnorm(n)
+  y <- X %*% beta_true + e  
+
+  dat <- data.frame(y = as.numeric(y), X)
+  colnames(dat) <- c("y", paste0("X", 1:p))
+
+  fit <- backward_stepwise(dat)
+
+  vars <- names(coef(fit))[-1]
+  selected_list[[i]] <- vars
+  if (length(vars) > 0) {
+    sim_mat[i, vars] <- 1
+  }
+
+  sm <- summary(fit)$coefficients
+
+  # X1
+  if ("X1" %in% rownames(sm)) {
+    b1 <- sm["X1", "Estimate"]
+    s1 <- sm["X1", "Std. Error"]
+    p1 <- sm["X1", "Pr(>|t|)"]
+  } else {
+    b1 <- NA
+    s1 <- NA
+    p1 <- NA
+  }
+
+  # X2
+  if ("X2" %in% rownames(sm)) {
+    b2 <- sm["X2", "Estimate"]
+    s2 <- sm["X2", "Std. Error"]
+    p2 <- sm["X2", "Pr(>|t|)"]
+  } else {
+    b2 <- NA
+    s2 <- NA
+    p2 <- NA
+  }
+
+  results_list[[i]] <- data.frame(
+    sim = i,
+    term = c("X1", "X2"),
+    beta_hat = c(b1, b2),
+    se = c(s1, s2),
+    p = c(p1, p2)
+  )
 }
 
-
+results <- do.call(rbind, results_list)
 
 ```
 
