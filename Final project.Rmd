@@ -47,11 +47,11 @@ backward_stepwise <- function(dat) {
 
     rss_vec <- numeric(k)
     for (j in 1:k) {
-      new_pred <- pred[-j]
-      new_fm <- paste(new_pred, collapse = "+")
-      new_form <- as.formula(paste("y ~", new_fm))
-      new_fit <- lm(new_form, dat)
-      rss_vec[j] <- sum(new_fit$residuals^2)
+      nw_pred <- pred[-j]
+      nw_fm <- paste(nw_pred, collapse = "+")
+      nw_form <- as.formula(paste("y ~", nw_fm))
+      nw_fit <- lm(nw_form, dat)
+      rss_vec[j] <- sum(nw_fit$residuals^2)
     }
 
     j_min <- which.min(rss_vec)
@@ -92,6 +92,7 @@ for (i in 1:simulation) {
   vars <- names(coef(fit))[-1]
   selected_list[[i]] <- vars
   if (length(vars) > 0) {
+    
     sim_mat[i, vars] <- 1
   }
 
@@ -100,7 +101,7 @@ for (i in 1:simulation) {
   # X1
   if ("X1" %in% rownames(sm)) {
     b1 <- sm["X1", "Estimate"]
-    s1 <- sm["X1", "Std. Error"]
+   s1 <- sm["X1", "Std. Error"]
     p1 <- sm["X1", "Pr(>|t|)"]
   } else {
     b1 <- NA
@@ -112,7 +113,7 @@ for (i in 1:simulation) {
   if ("X2" %in% rownames(sm)) {
     b2 <- sm["X2", "Estimate"]
     s2 <- sm["X2", "Std. Error"]
-    p2 <- sm["X2", "Pr(>|t|)"]
+   p2 <- sm["X2", "Pr(>|t|)"]
   } else {
     b2 <- NA
     s2 <- NA
@@ -123,12 +124,23 @@ for (i in 1:simulation) {
     sim = i,
     term = c("X1", "X2"),
     beta_hat = c(b1, b2),
-    se = c(s1, s2),
+   se = c(s1, s2),
     p = c(p1, p2)
   )
 }
 
 results <- do.call(rbind, results_list)
+
+select_prob <- colMeans(sim_mat)
+p1 <- results$p[results$term =="X1"]
+p2 <- results$p[results$term == "X2"]
+mean(p1<0.05, na.rm=TRUE)
+mean(p2<0.05, na.rm=TRUE)
+hist(p1); hist(p2)
+    
+select_prob
+
+tapply(results$p, results$term, function(x) mean(x < 0.05, na.rm = TRUE))  
 
 ```
 
