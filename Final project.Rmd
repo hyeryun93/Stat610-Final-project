@@ -38,27 +38,27 @@ backward_stepwise <- function(dat) {
     if (k == 0) break
 
     fm <- paste(pred, collapse = "+")
-    if (fm == "") break
 
     form <- as.formula(paste("y ~", fm))
-    fit <- lm(form, dat)
+    model <- lm(form, dat)
 
     if (k == 1) break
 
-    rss_vec <- numeric(k)
-    for (j in 1:k) {
-      nw_pred <- pred[-j]
+        rss_vec <- numeric(k)
+    
+    for (i in 1:k) {
+      nw_pred <- pred[-i]
       nw_fm <- paste(nw_pred, collapse = "+")
       nw_form <- as.formula(paste("y ~", nw_fm))
-      nw_fit <- lm(nw_form, dat)
-      rss_vec[j] <- sum(nw_fit$residuals^2)
+      nw_model <- lm(nw_form, dat)
+      rss_vec[i] <- sum(nw_model$residuals^2)
     }
 
-    j_min <- which.min(rss_vec)
-    pred <- pred[-j_min]
+    rss_min <- which.min(rss_vec)
+    pred <- pred[-rss_min]
   }
 
-  fit
+  model
 }
 ```
 
@@ -73,11 +73,11 @@ beta_true <- c(1, -1, rep(0, p - 2))
 
 simulation <- 1000
 
-selected_list <- vector("list", simulation)
-sim_mat <- matrix(0, nrow = simulation, ncol = p)
-colnames(sim_mat) <- paste0("X", 1:p)
+p_mat <- matrix(NA, nrow = simulation, ncol = 2)
+colnames(p_mat) <- c("X1", "X2")
 
-results_list <- vector("list", simulation)
+select_mat <- matrix(0, nrow = simulation, ncol = p)
+colnames(select_mat) <- paste0("X", 1:p)
 
 for (i in 1:simulation) {
   X <- matrix(rnorm(n * p), n, p)
@@ -87,61 +87,61 @@ for (i in 1:simulation) {
   dat <- data.frame(y = as.numeric(y), X)
   colnames(dat) <- c("y", paste0("X", 1:p))
 
-  fit <- backward_stepwise(dat)
+  model <- backward_stepwise(dat)
 
-  vars <- names(coef(fit))[-1]
-  selected_list[[i]] <- vars
+  vars <- names(coef(model))[-1]
+  
   if (length(vars) > 0) {
-    
-    sim_mat[i, vars] <- 1
+    select_mat[i, vars] <- 1
   }
 
-  sm <- summary(fit)$coefficients
+  sm <- summary(model)$coefficients
 
-  # X1
   if ("X1" %in% rownames(sm)) {
-    b1 <- sm["X1", "Estimate"]
-   s1 <- sm["X1", "Std. Error"]
-    p1 <- sm["X1", "Pr(>|t|)"]
-  } else {
-    b1 <- NA
-    s1 <- NA
-    p1 <- NA
+    p_mat[i, "X1"] <- sm["X1", "Pr(>|t|)"]
   }
 
-  # X2
   if ("X2" %in% rownames(sm)) {
-    b2 <- sm["X2", "Estimate"]
-    s2 <- sm["X2", "Std. Error"]
-   p2 <- sm["X2", "Pr(>|t|)"]
-  } else {
-    b2 <- NA
-    s2 <- NA
-    p2 <- NA
+    p_mat[i, "X2"] <- sm["X2", "Pr(>|t|)"]
   }
-
-  results_list[[i]] <- data.frame(
-    sim = i,
-    term = c("X1", "X2"),
-    beta_hat = c(b1, b2),
-   se = c(s1, s2),
-    p = c(p1, p2)
-  )
 }
 
-results <- do.call(rbind, results_list)
-
-select_prob <- colMeans(sim_mat)
-p1 <- results$p[results$term =="X1"]
-p2 <- results$p[results$term == "X2"]
-mean(p1<0.05, na.rm=TRUE)
-mean(p2<0.05, na.rm=TRUE)
-hist(p1); hist(p2)
-    
+select_prob <- colMeans(select_mat)
 select_prob
 
-tapply(results$p, results$term, function(x) mean(x < 0.05, na.rm = TRUE))  
+p1 <- p_mat[, "X1"]
+p2 <- p_mat[, "X2"]
+
+mean(p1 < 0.05, na.rm = TRUE)
+mean(p2 < 0.05, na.rm = TRUE)
+
+hist(p1)
+hist(p2)
 
 ```
 
 #Summarize and interpret results
+
+https://cran.r-project.org/web/packages/MASS/MASS.pdf
+
+1) Venables, W. N., & Ripley, B. D. (2025). MASS: Support Functions and Datasets for Venables and Ripley's MASS (Version 7.3-65). https://cran.r-project.org/package=MASS
+
+step AIC : 최적 모델 찾는 셀렉션 함수 
+For comparison, model selection can also be based on Akaike’s Information Criterion (AIC), which provides an alternative stepwise selection approach.
+
+ 
+
+https://cran.r-project.org/web/packages/selectiveInference/selectiveInference.pdf?utm_source=chatgpt.com
+
+2) Tibshirani, R., Tibshirani, R., Taylor, J., Loftus, J., Reid, S., & Markovic, J. (2025). selectiveInference: Tools for Post-Selection Inference (Version 1.2-5). https://cran.r-project.org/package=selectiveInference
+
+Details
+This function computes selective p-values and confidence intervals (selection intervals) for forward
+stepwise regression. The default is to report the results for each predictor after its entry into the
+model. See the "type" argument for other options. The confidence interval construction involves
+numerical search and can be fragile: if the observed statistic is too close to either end of the truncation interval (vlo and vup, see references), then one or possibly both endpoints of the interval
+of desired coverage cannot be computed, and default to +/- Inf. The output tailarea gives the
+achieved Gaussian tail areas for the reported intervals—these should be close to alpha/2, and can be
+used for error-checking purposes. - 16pg
+-> The idea of treating the p-values along the selection path as a sequence is related to the ForwardStop rule (G’Sell et al., 2014), as implemented by the forwardStop function in the selectiveInference package.
+
