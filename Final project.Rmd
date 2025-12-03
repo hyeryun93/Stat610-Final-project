@@ -71,15 +71,17 @@ n <- 100
 p <- 10
 beta_true <- c(1, -1, rep(0, p - 2))
 
-simulation <- 1000
+simulation_num <- 1000
 
-p_mat <- matrix(NA, nrow = simulation, ncol = 2)
-colnames(p_mat) <- c("X1", "X2")
+#p-value & variable selection 
+select_matrix <- matrix(0, nrow = simulation_num, ncol = 10)
+colnames(select_matrix) <- paste0("X", 1:10)
 
-select_mat <- matrix(0, nrow = simulation, ncol = p)
-colnames(select_mat) <- paste0("X", 1:p)
+p_matrix <- matrix(NA, nrow = simulation_num, ncol = 2)
+colnames(p_matrix) <- c("X1", "X2")
 
-for (i in 1:simulation) {
+#simulation 
+for (i in 1:simulation_num) {
   X <- matrix(rnorm(n * p), n, p)
   e <- rnorm(n)
   y <- X %*% beta_true + e  
@@ -89,28 +91,31 @@ for (i in 1:simulation) {
 
   model <- backward_stepwise(dat)
 
+  
   vars <- names(coef(model))[-1]
   
   if (length(vars) > 0) {
-    select_mat[i, vars] <- 1
+    select_matrix[i, vars] <- 1
   }
-
+  
+  
   sm <- summary(model)$coefficients
-
-  if ("X1" %in% rownames(sm)) {
-    p_mat[i, "X1"] <- sm["X1", "Pr(>|t|)"]
-  }
-
-  if ("X2" %in% rownames(sm)) {
-    p_mat[i, "X2"] <- sm["X2", "Pr(>|t|)"]
+  rowname <- rownames(sm)
+  for (k in 1:length(rowname)) {
+    if (rowname[k] == "X1") {
+      p_matrix[i, "X1"] <- sm[k, 4]
+    }
+        if (rowname[k] == "X2") {
+      p_matrix[i, "X2"] <- sm[k, 4]
+    }
   }
 }
 
-select_prob <- colMeans(select_mat)
+select_prob <- apply(select_matrix, 2, mean)
 select_prob
 
-p1 <- p_mat[, "X1"]
-p2 <- p_mat[, "X2"]
+p1 <- p_matrix[, "X1"]
+p2 <- p_matrix[, "X2"]
 
 mean(p1 < 0.05, na.rm = TRUE)
 mean(p2 < 0.05, na.rm = TRUE)
