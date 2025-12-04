@@ -113,17 +113,34 @@ for (i in 1:simulation_num) {
 
 select_prob <- apply(select_matrix, 2, mean)
 select_prob
+ 
 
-p1 <- p_matrix[, "X1"]
-p2 <- p_matrix[, "X2"]
-
-mean(p1 < 0.05, na.rm = TRUE)
-mean(p2 < 0.05, na.rm = TRUE)
-
-hist(p1)
-hist(p2)
-
+p1_rate <- mean(p_matrix[, "X1"] < 0.05, na.rm = TRUE)
+p2_rate <- mean(p_matrix[, "X2"] < 0.05, na.rm = TRUE)
+p1_rate
+p2_rate
 ```
+#selection probability of X1 and X2
+
+if
+X1    X2    X3    X4    X5    X6    X7    X8    X9   X10 
+0.485 0.515 0 ... 
+
+-> X1 is selected 48.5% and X2 51.5%. All the other variables are never selected. 
+
+#pvalue
+[1] 1
+[1] 1
+For both X1 and X2, the p value is below 0.05 (significant) where they are selected. 
+
+=> selection probability show that X1 and X2 were selected as the final predictor in about half of the simulation. 
+
+
+
+
+
+
+
 
 #Summarize and interpret results
 
