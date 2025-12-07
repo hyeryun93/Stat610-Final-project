@@ -1,9 +1,14 @@
-– Model selection and post-selection inference: In regression modeling, we sometimes want to include only a subset of our variables in the model and would like that decision to be data dependent. 
-Two solutions to this problem are forward stepwise selection and backward stepwise selection, in which you fit a sequence of models, either adding or subtracting one variable at a time until some stopping criterion is reached. 
-These procedures work for variable selection, but they invalidate the standard methods of inference in linear models. 
-2 You will: 
-– Write code implementing either forward stepwise selection or backward stepwise selection. 
- – Set up a simulation experiment, run your method on simulated data, obtain p-values or confidence intervals in the selected model.
+Model selection and post-selection inference: In regression modeling, we sometimes want to
+include only a subset of our variables in the model and would like that decision to be data
+dependent. Two solutions to this problem are forward stepwise selection and backward stepwise
+selection, in which you fit a sequence of models, either adding or subtracting one variable
+at a time until some stopping criterion is reached. These procedures work for variable
+selection, but they invalidate the standard methods of inference in linear models.
+You will:
+– Write code implementing either forward stepwise selection or backward stepwise selection.
+– Set up a simulation experiment, run your method on simulated data, obtain p-values
+or confidence intervals in the selected model, and report on whether the hypothesis
+tests and confidence intervals were valid.
 ----------------------------------
 
 
@@ -27,113 +32,91 @@ y <- X %*% beta + e
 #implement stepwise: backward stepwise selection 
 -add or remove one variable at a time 
 ```{r}
-#approach: remove one predictor at a time based on the smallest RSS
-
+#approach: AIC 
+ 
 backward_stepwise <- function(dat) {
-  cols <- names(dat)
-  pred <- cols[cols != "y"]
+  all_vars <- colnames(dat)[colnames(dat) != "y"]
 
-  while (TRUE) {
-    k <- length(pred)
-    if (k == 0) break
+  #model generating
+  formula <- paste("y ~", paste(all_vars, collapse = "+"))
+  model <- lm(formula, data = dat)
+  current_AIC <- AIC(model)
 
-    fm <- paste(pred, collapse = "+")
+  #removing variables
+  while (length(all_vars) > 1) {
+    AIC_val <- numeric(length(all_vars))   
 
-    form <- as.formula(paste("y ~", fm))
-    model <- lm(form, dat)
+    #AIC
+    for (i in 1:length(all_vars)) {
+      reduced_vars <- all_vars[-i]   
+      reduced_formula <- paste("y ~", paste(reduced_vars, collapse = "+"))
+      reduced_model <- lm(reduced_formula, data = dat)
 
-    if (k == 1) break
-
-        rss_vec <- numeric(k)
-    
-    for (i in 1:k) {
-      nw_pred <- pred[-i]
-      nw_fm <- paste(nw_pred, collapse = "+")
-      nw_form <- as.formula(paste("y ~", nw_fm))
-      nw_model <- lm(nw_form, dat)
-      rss_vec[i] <- sum(nw_model$residuals^2)
+      AIC_val[i] <- AIC(reduced_model) 
     }
 
-    rss_min <- which.min(rss_vec)
-    pred <- pred[-rss_min]
+    min_AIC <- min(AIC_val)   
+    
+    if (min_AIC < current_AIC) {
+      worst_variable <- all_vars[which.min(AIC_val)]
+      all_vars <- all_vars[all_vars != worst_variable]   
+      current_AIC <- min_AIC   
+
+    } else {
+
+      break
+    }
   }
 
-  model
+  #final model
+  final_formula <- paste("y ~", paste(all_vars, collapse = "+"))
+  final_model <- lm(final_formula, dat)
+  return(final_model)
 }
 ```
 
 
-#Simulation with the final model
+ 
+#simulation1 
 ```{r}
-#sim
-set.seed(610)
+ set.seed(610)
+
 n <- 100
 p <- 10
-beta_true <- c(1, -1, rep(0, p - 2))
+beta_true <- c(1, -1, rep(0, p-2))
+alpha <- 0.05
+sim_num <- 1000
+var_names <- paste0("X", 1:p)
+null_vars <- var_names[3:p]
 
-simulation_num <- 1000
+selected_matrix <- matrix(0, nrow = sim_num, ncol = p)
 
-#p-value & variable selection 
-select_matrix <- matrix(0, nrow = simulation_num, ncol = 10)
-colnames(select_matrix) <- paste0("X", 1:10)
-
-p_matrix <- matrix(NA, nrow = simulation_num, ncol = 2)
-colnames(p_matrix) <- c("X1", "X2")
-
-#simulation 
-for (i in 1:simulation_num) {
+for(sim in 1:sim_num) {
   X <- matrix(rnorm(n * p), n, p)
   e <- rnorm(n)
-  y <- X %*% beta_true + e  
-
-  dat <- data.frame(y = as.numeric(y), X)
-  colnames(dat) <- c("y", paste0("X", 1:p))
-
-  model <- backward_stepwise(dat)
-
+  y <- X %*% beta_true + e
   
-  vars <- names(coef(model))[-1]
-  
-  if (length(vars) > 0) {
-    select_matrix[i, vars] <- 1
+  dat <- data.frame(y = as.numeric(y))
+  for(i in 1:p) {
+    dat[[paste0("X", i)]] <- X[, i]
   }
   
+  # Model Selection
+  final_model <- backward_stepwise(dat)
   
-  sm <- summary(model)$coefficients
-  rowname <- rownames(sm)
-  for (k in 1:length(rowname)) {
-    if (rowname[k] == "X1") {
-      p_matrix[i, "X1"] <- sm[k, 4]
-    }
-        if (rowname[k] == "X2") {
-      p_matrix[i, "X2"] <- sm[k, 4]
+  selected_vars <- rownames(summary(final_model)$coefficients)[-1]
+  
+  if(length(selected_vars) > 0) {
+    for(var in selected_vars) {
+      selected_matrix[sim, which(var_names == var)] <- 1
     }
   }
 }
-
-select_prob <- apply(select_matrix, 2, mean)
-select_prob
- 
-
-p1_rate <- mean(p_matrix[, "X1"] < 0.05, na.rm = TRUE)
-p2_rate <- mean(p_matrix[, "X2"] < 0.05, na.rm = TRUE)
-p1_rate
-p2_rate
 ```
-#selection probability of X1 and X2
 
-if
-X1    X2    X3    X4    X5    X6    X7    X8    X9   X10 
-0.485 0.515 0 ... 
 
--> X1 is selected 48.5% and X2 51.5%. All the other variables are never selected. 
 
-#pvalue
-[1] 1
-[1] 1
-For both X1 and X2, the p value is below 0.05 (significant) where they are selected. 
 
-=> selection probability show that X1 and X2 were selected as the final predictor in about half of the simulation. 
 
 
 #inference   
