@@ -30,16 +30,15 @@ y <- X %*% beta + e
 
 
 #implement stepwise: backward stepwise selection 
--add or remove one variable at a time 
+approach: AIC 
 ```{r}
-#approach: AIC 
  
 backward_stepwise <- function(dat) {
   all_vars <- colnames(dat)[colnames(dat) != "y"]
 
   #model generating
   formula <- paste("y ~", paste(all_vars, collapse = "+"))
-  model <- lm(formula, data = dat)
+  model <- lm(formula, dat)
   current_AIC <- AIC(model)
 
   #removing variables
@@ -50,7 +49,7 @@ backward_stepwise <- function(dat) {
     for (i in 1:length(all_vars)) {
       reduced_vars <- all_vars[-i]   
       reduced_formula <- paste("y ~", paste(reduced_vars, collapse = "+"))
-      reduced_model <- lm(reduced_formula, data = dat)
+      reduced_model <- lm(reduced_formula, dat)
 
       AIC_val[i] <- AIC(reduced_model) 
     }
@@ -73,37 +72,48 @@ backward_stepwise <- function(dat) {
   final_model <- lm(final_formula, dat)
   return(final_model)
 }
+final_model
 ```
 
 
  
 #simulation1 
 ```{r}
- set.seed(610)
+#simulation setup
+set.seed(610)
 
 n <- 100
 p <- 10
 beta_true <- c(1, -1, rep(0, p-2))
 alpha <- 0.05
-sim_num <- 1000
+simulation_num <- 1000
 var_names <- paste0("X", 1:p)
 null_vars <- var_names[3:p]
 
-selected_matrix <- matrix(0, nrow = sim_num, ncol = p)
+#initialize storage 
 
-for(sim in 1:sim_num) {
+selected_matrix <- matrix(0, nrow = simulation_num, ncol = p)
+colnames(selected_matrix) <- var_names
+
+pval_X1 <- rep(NA, simulation_num)
+pval_X2 <- rep(NA, simulation_num)
+typeI_error <- rep(0, simulation_num)
+
+#main loop
+for(sim in 1:simulation_num) {
   X <- matrix(rnorm(n * p), n, p)
   e <- rnorm(n)
   y <- X %*% beta_true + e
-  
-  dat <- data.frame(y = as.numeric(y))
+
+
+#initialize data frame   
+  dat <- data.frame(y = as.numeric(y))  
   for(i in 1:p) {
-    dat[[paste0("X", i)]] <- X[, i]
+      dat[[paste0("X", i)]] <- X[, i]
   }
   
   # Model Selection
   final_model <- backward_stepwise(dat)
-  
   selected_vars <- rownames(summary(final_model)$coefficients)[-1]
   
   if(length(selected_vars) > 0) {
@@ -111,41 +121,5 @@ for(sim in 1:sim_num) {
       selected_matrix[sim, which(var_names == var)] <- 1
     }
   }
-}
+coef_summary <- summary(final_model)$coefficients
 ```
-
-
-
-
-
-
-#inference   
-An Introduction to Statistical Learning 6.1.3
-file:///C:/Users/hidy0/Downloads/ISLRv2_corrected_June_2023%20(1).pdf
-"ISL explicitly notes that stepwise selection produces overly optimistic inference and unstable selected models."
- 
- 
-The Elements of
-Statistical Learning
-
-1) Venables, W. N., & Ripley, B. D. (2025). MASS: Support Functions and Datasets for Venables and Ripley's MASS (Version 7.3-65). https://cran.r-project.org/package=MASS
-
-step AIC : 최적 모델 찾는 셀렉션 함수 
-For comparison, model selection can also be based on Akaike’s Information Criterion (AIC), which provides an alternative stepwise selection approach.
-
- 
-
-https://cran.r-project.org/web/packages/selectiveInference/selectiveInference.pdf?utm_source=chatgpt.com
-
-2) Tibshirani, R., Tibshirani, R., Taylor, J., Loftus, J., Reid, S., & Markovic, J. (2025). selectiveInference: Tools for Post-Selection Inference (Version 1.2-5). https://cran.r-project.org/package=selectiveInference
-
-Details
-This function computes selective p-values and confidence intervals (selection intervals) for forward
-stepwise regression. The default is to report the results for each predictor after its entry into the
-model. See the "type" argument for other options. The confidence interval construction involves
-numerical search and can be fragile: if the observed statistic is too close to either end of the truncation interval (vlo and vup, see references), then one or possibly both endpoints of the interval
-of desired coverage cannot be computed, and default to +/- Inf. The output tailarea gives the
-achieved Gaussian tail areas for the reported intervals—these should be close to alpha/2, and can be
-used for error-checking purposes. - 16pg
--> The idea of treating the p-values along the selection path as a sequence is related to the ForwardStop rule (G’Sell et al., 2014), as implemented by the forwardStop function in the selectiveInference package.
-
