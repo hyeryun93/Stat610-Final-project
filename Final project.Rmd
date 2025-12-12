@@ -13,9 +13,9 @@ tests and confidence intervals were valid.
 
 
 #data generating
--Set the model
+:evaluating whether backward stepwise selection can correctly identify the important predictors
 ```{r}
-#simple setup: standard linear model Y=Xβ+ε. 
+#setup: from simpe linear model  
 
 set.seed(610)
 
@@ -25,14 +25,19 @@ p <- 10
 X <- matrix(rnorm(n*p), n, p)
 beta <- c(1, -1, rep(0, p-2))
 e <- rnorm(n)
-y <- X %*% beta + e  
+y <- X %*% beta + e
+
+dat <- data.frame(y = as.numeric(y), X)
+colnames(dat) <- c("y", paste0("X", 1:10))
 ```
 
 
 #implement stepwise: backward stepwise selection 
 approach: AIC 
 ```{r}
- 
+dat <- data.frame(y = as.numeric(y), X)
+colnames(dat) <- c("y", paste0("X", 1:10)) 
+
 backward_stepwise <- function(dat) {
   all_vars <- colnames(dat)[colnames(dat) != "y"]
 
@@ -72,12 +77,15 @@ backward_stepwise <- function(dat) {
   final_model <- lm(final_formula, dat)
   return(final_model)
 }
+
+final_model <- backward_stepwise(dat)
+
 final_model
+
 ```
 
-
  
-#simulation1 
+#simulation
 ```{r}
 #simulation setup
 set.seed(610)
@@ -85,13 +93,11 @@ set.seed(610)
 n <- 100
 p <- 10
 beta_true <- c(1, -1, rep(0, p-2))
-alpha <- 0.05
 simulation_num <- 1000
 var_names <- paste0("X", 1:p)
 null_vars <- var_names[3:p]
 
 #initialize storage 
-
 selected_matrix <- matrix(0, nrow = simulation_num, ncol = p)
 colnames(selected_matrix) <- var_names
 
@@ -99,20 +105,18 @@ pval_X1 <- rep(NA, simulation_num)
 pval_X2 <- rep(NA, simulation_num)
 typeI_error <- rep(0, simulation_num)
 
-#main loop
+#main simulation loop
 for(sim in 1:simulation_num) {
   X <- matrix(rnorm(n * p), n, p)
   e <- rnorm(n)
   y <- X %*% beta_true + e
 
-
-#initialize data frame   
+  
   dat <- data.frame(y = as.numeric(y))  
   for(i in 1:p) {
       dat[[paste0("X", i)]] <- X[, i]
   }
   
-  # Model Selection
   final_model <- backward_stepwise(dat)
   selected_vars <- rownames(summary(final_model)$coefficients)[-1]
   
@@ -121,5 +125,109 @@ for(sim in 1:simulation_num) {
       selected_matrix[sim, which(var_names == var)] <- 1
     }
   }
+#coefficient table 
 coef_summary <- summary(final_model)$coefficients
+  
+  #store pval: appears in final model  
+  if(length(which(selected_vars == "X1")) == 1) {
+    pval_X1[sim] <- coef_summary["X1", "Pr(>|t|)"]
+  }
+  if(length(which(selected_vars == "X2")) ==1 ) {
+    pval_X2[sim] <- coef_summary["X2", "Pr(>|t|)"]
+  }
+
+alpha <- 0.05    
+current_typeI_error <- 0
+
+  
+  for(var_name in selected_vars) {
+    if(length(which(null_vars == var_name)) == 1) {
+      p_val <- coef_summary[var_name, "Pr(>|t|)"]
+      
+      if(p_val < alpha) {
+        current_typeI_error <- current_typeI_error + 1
+      }
+    }
+  }
+typeI_error[sim] <- current_typeI_error
+}
 ```
+
+
+
+
+
+#Result
+```{r}
+variable_rate <- numeric(p)
+for(i in 1:p) {
+  count <- 0
+  for(j in 1:simulation_num) {
+    if(selected_matrix[j, i] == 1) {
+      count <- count + 1
+    }
+  }
+  variable_rate[i] <- count / simulation_num
+}
+
+#significant
+mean(pval_X1 < 0.05, na.rm = TRUE)
+mean(pval_X2 < 0.05, na.rm = TRUE)
+
+mean(pval_X1 == pval_X1)
+mean(pval_X2 == pval_X2)
+
+#type1 
+typeI_error_rate <- sum(typeI_error) / sum(selected_matrix[, null_vars])
+typeI_error_rate
+```
+
+
+
+
+```{r}
+variable_rate["X3"]
+sum(selected_matrix[, "X3"])
+```
+
+
+```{r}
+selection_counts <- colSums(selected_matrix)  
+
+barplot(selection_counts,
+        names.arg = var_names,
+        main = "How often each predictor was selected",
+        ylab = "Selection count")
+```
+
+
+#inference   
+An Introduction to Statistical Learning 6.1.3
+file:///C:/Users/hidy0/Downloads/ISLRv2_corrected_June_2023%20(1).pdf
+"ISL explicitly notes that stepwise selection produces overly optimistic inference and unstable selected models."
+ 
+ 
+The Elements of
+Statistical Learning
+
+1) Venables, W. N., & Ripley, B. D. (2025). MASS: Support Functions and Datasets for Venables and Ripley's MASS (Version 7.3-65). https://cran.r-project.org/package=MASS
+
+step AIC : 최적 모델 찾는 셀렉션 함수 
+For comparison, model selection can also be based on Akaike’s Information Criterion (AIC), which provides an alternative stepwise selection approach.
+
+ 
+
+https://cran.r-project.org/web/packages/selectiveInference/selectiveInference.pdf?utm_source=chatgpt.com
+
+2) Tibshirani, R., Tibshirani, R., Taylor, J., Loftus, J., Reid, S., & Markovic, J. (2025). selectiveInference: Tools for Post-Selection Inference (Version 1.2-5). https://cran.r-project.org/package=selectiveInference
+
+Details
+This function computes selective p-values and confidence intervals (selection intervals) for forward
+stepwise regression. The default is to report the results for each predictor after its entry into the
+model. See the "type" argument for other options. The confidence interval construction involves
+numerical search and can be fragile: if the observed statistic is too close to either end of the truncation interval (vlo and vup, see references), then one or possibly both endpoints of the interval
+of desired coverage cannot be computed, and default to +/- Inf. The output tailarea gives the
+achieved Gaussian tail areas for the reported intervals—these should be close to alpha/2, and can be
+used for error-checking purposes. - 16pg
+-> The idea of treating the p-values along the selection path as a sequence is related to the ForwardStop rule (G’Sell et al., 2014), as implemented by the forwardStop function in the selectiveInference package.
+
