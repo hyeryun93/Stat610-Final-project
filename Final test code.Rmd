@@ -1,8 +1,9 @@
-#Final project
-Model selection and post-selection inference Final project 
+#Final project 
+#Test code 
 
 
 #data generating
+:evaluating whether backward stepwise selection can correctly identify the important predictors
 ```{r}
 set.seed(610)
 
@@ -18,8 +19,8 @@ dat <- data.frame(y = as.numeric(y), X)
 colnames(dat) <- c("y", paste0("X", 1:10))
 ```
 
-
 #implement stepwise: backward stepwise selection 
+approach: AIC 
 ```{r}
 dat <- data.frame(y = as.numeric(y), X)
 colnames(dat) <- c("y", paste0("X", 1:10)) 
@@ -66,7 +67,6 @@ final_model
 
 ```
 
- 
 #simulation
 ```{r}
 set.seed(610)
@@ -131,8 +131,7 @@ typeI_error[sim] <- current_typeI_error
 }
 ```
 
-
-#Result1
+#Result
 ```{r}
 variable_rate <- numeric(p)
 for(i in 1:p) {
@@ -155,22 +154,14 @@ mean(!is.na(pval_X2))
 #type1 
 typeI_error_rate <- sum(typeI_error) / sum(selected_matrix[, null_vars])
 typeI_error_rate
-```
 
-
-#Result2
-```{r}
 selection_counts <- colSums(selected_matrix)  
 
 barplot(selection_counts,
         names.arg = var_names,
         main = "How often each predictor was selected",
         ylab = "Selection count")
-```
 
-
-#Result3  
-```{r}
 variable_rate["X3"]
 sum(selected_matrix[, "X3"])
 ```
@@ -180,3 +171,23 @@ sum(selected_matrix[, "X3"])
 
 
 
+# Test 1: backward_stepwise runs and returns a final model
+# Expected output: summary table prints without error, and shows which X's are in the final model
+
+```{r}
+test_model <- backward_stepwise(dat)
+summary(test_model)
+```
+
+# Test 2: Important variables are selected often
+# Expected output: mean(!is.na(pval_X1)), mean(!is.na(pval_X2)) are high
+```{r}
+mean(!is.na(pval_X1))
+mean(!is.na(pval_X2))
+```
+
+# Test 3: After selection, inference can be misleading (post-selection issue)
+# Expected output: typeI_error_rate is noticeably larger than 0.05
+```{r}
+typeI_error_rate
+```
